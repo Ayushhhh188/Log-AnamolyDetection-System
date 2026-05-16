@@ -1,0 +1,60 @@
+# ── Virtual environment ────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+
+# ── Python cache ───────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# ── Environment / secrets ──────────────────────────────────────────────────
+.env
+*.env
+.env.*
+!.env.example
+
+# ── Raw data (too large for git) ───────────────────────────────────────────
+data/raw/
+data/processed/
+
+# ── Trained model weights & artifacts ─────────────────────────────────────
+outputs/models/
+outputs/logs/
+DL/autoencoder/*.h5
+DL/autoencoder/*.keras
+DL/autoencoder/*.pkl
+DL/autoencoder/*.joblib
+DL/isolation_forest/*.pkl
+DL/isolation_forest/*.joblib
+*.h5
+*.keras
+*.pkl
+*.joblib
+*.npy
+*.npz
+
+# ── Jupyter notebooks checkpoints ─────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── OS files ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE ────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.user
+
+# ── Frontend build artifacts ───────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ── Logs ───────────────────────────────────────────────────────────────────
+*.log
+logs/

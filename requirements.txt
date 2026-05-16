@@ -1,0 +1,40 @@
+# Core
+numpy==2.4.3
+pandas==3.0.1
+
+# Machine Learning
+scikit-learn==1.2.2
+joblib==1.2.0
+
+# Deep Learning (TensorFlow + Keras stack)
+tensorflow==2.21.0
+keras==3.13.2
+h5py==3.14.0
+absl-py==2.4.0
+astunparse==1.6.3
+flatbuffers==25.12.19
+gast==0.7.0
+google-pasta==0.2.0
+grpcio==1.78.0
+libclang==18.1.1
+ml_dtypes==0.5.4
+opt_einsum==3.4.0
+optree==0.19.0
+protobuf==7.34.1
+termcolor==3.3.0
+wrapt==2.1.2
+
+# API
+fastapi==0.95.2
+uvicorn==0.22.0
+pydantic==1.10.12
+
+# Utilities
+requests==2.33.0
+python-dateutil==2.9.0.post0
+typing_extensions==4.15.0
+tzdata==2025.3
+
+# Performance (fix warnings)
+numexpr==2.14.1
+Bottleneck==1.6.0
