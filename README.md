@@ -1,6 +1,6 @@
 # Log Anomaly Detection System
 
-A real-time log anomaly detection system built around a deep learning pipeline. Ingests raw system logs, runs them through an autoencoder-based anomaly detector, classifies severity, persists results to MongoDB, and streams everything live to a terminal monitor — no frontend, no browser.
+A real-time log anomaly detection system built around a deep learning pipeline. Ingests raw system logs, runs them through an autoencoder-based anomaly detector, classifies severity, persists results to MongoDB, and streams everything live to a terminal monitor.
 
 ---
 
