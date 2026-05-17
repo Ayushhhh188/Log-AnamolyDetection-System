@@ -406,7 +406,7 @@ The `SCORE` column is the model's raw `anomaly_score`. Everything else — `SEV`
 ## Design Decisions
 
 **Why no frontend?**
-A browser UI is the wrong abstraction for a log monitoring system. Real SOC tools (Suricata, Zeek, Wazuh, Splunk forwarders) run as terminal processes. The monitor is SSH-able, scriptable, and has no browser dependency — you can run it on a remote server with no display.
+A browser UI is the wrong abstraction for a log monitoring system. Real SOC tools (Suricata, Zeek, Wazuh, Splunk forwarders) run as terminal processes. The monitor is SSH-able, scriptable, and has no browser dependency you can run it on a remote server with no display.
 
 **Why unsupervised learning?**
 In real environments, anomalies are rare and often novel. You can't label what you don't know about. An autoencoder trained only on normal patterns can detect deviations without requiring a labelled anomaly dataset.
