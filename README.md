@@ -5,7 +5,8 @@ A real-time log anomaly detection system built around a deep learning pipeline. 
 ---
 
 ## Demo
-
+### Click Below to See Project Demo
+[![Watch the demo](https://github.com/Ayushhhh188/Log-AnamolyDetection-System/blob/0b571c837af516c4ce02a78922f9e3a8cc1dfbac/simulation/Screenshot%202026-05-20%20011304.png)](YOUR_YOUTUBE_VIDEO_LINK)
 > Clone the repo, add your MongoDB URI, run one command. Everything works.
 
 ```bash
