@@ -1,12 +1,12 @@
 # Log Anomaly Detection System
 
-A real-time log anomaly detection system built around a deep learning pipeline. Ingests raw system logs, runs them through an autoencoder-based anomaly detector, classifies severity, persists results to MongoDB, and streams everything live to a terminal monitor — no frontend, no browser.
+A real-time log anomaly detection system built around a deep learning pipeline. Ingests raw system logs, runs them through an autoencoder-based anomaly detector, classifies severity, persists results to MongoDB, and streams everything live to a terminal monitor.
 
 ---
 
 ## Demo
 ### Click Below to See Project Demo ▶️
-[![Watch the demo](https://github.com/Ayushhhh188/Log-AnamolyDetection-System/blob/0b571c837af516c4ce02a78922f9e3a8cc1dfbac/simulation/Screenshot%202026-05-20%20011304.png)](YOUR_YOUTUBE_VIDEO_LINK)
+[![Watch the demo](https://github.com/Ayushhhh188/Log-AnamolyDetection-System/blob/0b571c837af516c4ce02a78922f9e3a8cc1dfbac/simulation/Screenshot%202026-05-20%20011304.png)](https://youtu.be/m31Yegi6grk)
 > Clone the repo, add your MongoDB URI, run one command. Everything works.
 
 ```bash
