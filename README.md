@@ -1,8 +1,20 @@
 # Log Anomaly Detection System
 
-A real-time log anomaly detection system built around a deep learning pipeline. Ingests raw system logs, runs them through an autoencoder-based anomaly detector, classifies severity, persists results to MongoDB, and streams everything live to a terminal monitor.
+A real-time log anomaly detection system built around a deep learning pipeline. Ingests raw system logs, runs them through an autoencoder-based anomaly detector, classifies severity, persists results to MongoDB, and streams everything live to a terminal monitor — no frontend, no browser.
 
-![image alt](https://github.com/Ayushhhh188/Log-AnamolyDetection-System/blob/main/simulation/Screenshot%202026-05-20%20011304.png)
+---
+
+## Demo
+
+> Clone the repo, add your MongoDB URI, run one command. Everything works.
+
+```bash
+git clone https://github.com/Ayushhhh188/Log-AnamolyDetection-System.git
+cd Log-AnamolyDetection-System
+cp .env.example .env        # fill in your MONGO_URI
+docker-compose up backend   # terminal 1
+docker-compose run --rm monitor  # terminal 2
+```
 
 ---
 
@@ -13,7 +25,8 @@ A real-time log anomaly detection system built around a deep learning pipeline. 
 - [Project Structure](#project-structure)
 - [How It Works](#how-it-works)
 - [ML Pipeline](#ml-pipeline)
-- [Setup](#setup)
+- [Setup — With Docker](#setup--with-docker)
+- [Setup — Without Docker](#setup--without-docker)
 - [Running the Project](#running-the-project)
 - [API Reference](#api-reference)
 - [Terminal Monitor](#terminal-monitor)
@@ -25,11 +38,11 @@ A real-time log anomaly detection system built around a deep learning pipeline. 
 
 ## Overview
 
-Most anomaly detection demos either fake the detection (pre-labelling logs before "predicting" them) or wrap everything in a flashy frontend that obscures what the system actually does. This project does neither.
+Most anomaly detection demos either fake the detection (pre-labelling logs before "predicting" them) or wrap everything in a frontend that obscures what the system actually does. This project does neither.
 
 Raw, unlabelled Hadoop system logs are generated and passed through a real DL inference pipeline. The model assigns an anomaly score based on reconstruction error, labels each log as normal, suspicious, or critical, and the result is stored in MongoDB and streamed live to the terminal.
 
-**Stack:** Python · FastAPI · WebSocket · TensorFlow/Keras · Scikit-learn · MongoDB · NumPy · Pandas
+**Stack:** Python · FastAPI · WebSocket · TensorFlow/Keras · Scikit-learn · MongoDB · NumPy · Pandas · Docker
 
 ---
 
@@ -114,7 +127,11 @@ Logs-Anamoly-Detection-System-Term/
 │   ├── models/                     # Saved model checkpoints
 │   └── logs/                       # Training logs
 │
-├── monitor.py                      # Terminal monitor — runs in PowerShell/bash
+├── monitor.py                      # Terminal monitor — runs in PowerShell/bash/Docker
+├── Dockerfile                      # Backend container image
+├── Dockerfile.monitor              # Monitor container image
+├── docker-compose.yml              # Orchestrates backend + monitor together
+├── .dockerignore                   # Excludes venv, cache, secrets from image
 ├── debug_import.py                 # Import diagnostic tool
 ├── requirements.txt
 ├── .env.example
@@ -139,7 +156,7 @@ Logs-Anamoly-Detection-System-Term/
 }
 ```
 
-No type label. No pre-assigned severity. The model doesn't know what it's looking at — it has to figure it out.
+No type label. No pre-assigned severity. The model decides.
 
 ### 2. Inference Pipeline
 
@@ -148,17 +165,15 @@ Each batch is passed to `predict_batch()` in `DL/pipeline/batch_inference.py`:
 - Logs are converted to a DataFrame
 - Features are extracted and encoded
 - The autoencoder attempts to reconstruct each log
-- High reconstruction error → the log is anomalous (it doesn't look like anything the model learned as "normal")
+- High reconstruction error → the log is anomalous
 - Isolation Forest provides a secondary anomaly score
 - Scores are combined and thresholded into `normal / suspicious / critical`
 
 ### 3. Result
 
-Each log comes back enriched:
-
 ```python
 {
-    "anomaly_score":        0.821,   # 0.0 = definitely normal, 1.0 = definitely anomalous
+    "anomaly_score":        0.821,   # 0.0 = normal, 1.0 = anomalous
     "reconstruction_error": 0.634,   # raw autoencoder output
     "label":                -1,      # 1 = normal, -1 = anomaly
     "severity":             "critical"
@@ -167,7 +182,7 @@ Each log comes back enriched:
 
 ### 4. Storage & Streaming
 
-Results are stored in MongoDB and broadcast over WebSocket simultaneously. The terminal monitor receives them and renders live.
+Results are stored in MongoDB and broadcast over WebSocket simultaneously.
 
 ---
 
@@ -175,78 +190,100 @@ Results are stored in MongoDB and broadcast over WebSocket simultaneously. The t
 
 ### Model: Autoencoder
 
-The autoencoder is trained exclusively on normal log patterns from the HDFS dataset. It learns to reconstruct normal logs with low error. When it encounters an anomalous log, reconstruction error spikes — that spike is the anomaly signal.
+Trained exclusively on normal log patterns from the HDFS dataset. It learns to reconstruct normal logs with low error. When it encounters an anomalous log, reconstruction error spikes — that spike is the anomaly signal.
 
 This is an unsupervised approach. No labelled anomaly data is required during training, which is realistic for real security environments where anomalies are rare and often unknown in advance.
 
 ### Model: Isolation Forest
 
-Isolation Forest provides a complementary score. It isolates anomalies by randomly partitioning the feature space — anomalous points are isolated faster (shorter path length in the tree) than normal points.
+Provides a complementary score by isolating anomalies through random feature partitioning. Anomalous points are isolated faster (shorter path length) than normal ones.
 
 ### Sensitivity Levels
 
-Three sensitivity modes control the thresholds:
-
-| Sensitivity | Anomaly threshold | Use case |
-|-------------|-------------------|----------|
-| `low`       | Permissive        | Reduce false positives, catch only clear anomalies |
-| `normal`    | Balanced          | General monitoring |
-| `high`      | Strict            | High-security environments, flag anything unusual |
+| Sensitivity | Threshold  | Use case |
+|-------------|------------|----------|
+| `low`       | Permissive | Reduce false positives |
+| `normal`    | Balanced   | General monitoring |
+| `high`      | Strict     | Flag anything unusual |
 
 ### Training Data
 
-The HDFS (Hadoop Distributed File System) log dataset — a standard benchmark dataset in log-based anomaly detection research. Contains real system logs from a 203-node Hadoop cluster running on Amazon EC2.
+The HDFS (Hadoop Distributed File System) log dataset — a standard benchmark in log-based anomaly detection research. Contains real system logs from a 203-node Hadoop cluster on Amazon EC2.
 
 ---
 
-## Setup
+## Setup — With Docker
+
+Docker is the recommended way. No Python installation, no venv, no path issues — one command runs everything.
 
 ### Prerequisites
 
-- Python 3.10+
-- MongoDB Atlas account (free tier works)
-- Git
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+- A MongoDB Atlas account (free tier works) — [create one here](https://www.mongodb.com/cloud/atlas)
 
-### Installation
+### Steps
 
 ```bash
-# Clone the repo
+# 1. Clone
 git clone https://github.com/Ayushhhh188/Log-AnamolyDetection-System.git
 cd Log-AnamolyDetection-System
 
-# Create and activate virtual environment
-python -m venv venv
+# 2. Set up environment
+cp .env.example .env
+# Open .env and fill in your MONGO_URI
 
-# Windows
-venv\Scripts\activate
+# 3. Build images (first time only — takes 5-10 min)
+docker-compose build
 
-# Linux / macOS
-source venv/bin/activate
+# 4. Start backend (Terminal 1)
+docker-compose up backend
 
-# Install dependencies
-pip install -r requirements.txt
+# 5. Run monitor (Terminal 2)
+docker-compose run --rm monitor
 ```
 
-### Environment Variables
+### What Docker does here
 
-Create a `.env` file in the project root:
+- `Dockerfile` — builds the backend image: installs Python 3.11, all pip dependencies, copies your code, starts uvicorn
+- `Dockerfile.monitor` — builds the monitor image: same deps, runs `monitor.py` instead
+- `docker-compose.yml` — orchestrates both: backend starts first, monitor waits for it, volumes mount your model weights from your machine into the containers
+- Model weights stay on your machine and are mounted as volumes — they don't get baked into the image
+
+### Different modes
 
 ```bash
+# DDoS simulation
+docker-compose run --rm monitor python monitor.py --mode ddos
+
+# High sensitivity
+docker-compose run --rm monitor python monitor.py --sensitivity high
+
+# No database
+docker-compose run --rm monitor python monitor.py --no-db
+```
+
+---
+
+## Setup — Without Docker
+
+```bash
+# 1. Clone
+git clone https://github.com/Ayushhhh188/Log-AnamolyDetection-System.git
+cd Log-AnamolyDetection-System
+
+# 2. Virtual environment
+python -m venv venv
+venv\Scripts\activate          # Windows
+source venv/bin/activate       # Linux / macOS
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Environment variables
 cp .env.example .env
-```
+# Edit .env with your MONGO_URI
 
-Edit `.env`:
-
-```
-MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority
-```
-
-### `__init__.py` Files
-
-Python requires these to treat directories as importable modules. If any are missing, create them:
-
-```powershell
-# Windows PowerShell
+# 5. Create __init__.py files if missing
 New-Item -ItemType File -Force "DL\__init__.py"
 New-Item -ItemType File -Force "DL\pipeline\__init__.py"
 New-Item -ItemType File -Force "simulation\__init__.py"
@@ -260,35 +297,25 @@ New-Item -ItemType File -Force "backend\models\__init__.py"
 
 ## Running the Project
 
-Always run from the project root so path resolution works correctly.
+Always run from the project root.
 
-### Start the Backend
+### Backend
 
 ```bash
 uvicorn backend.app:app --reload --port 8000
 ```
 
-The API will be available at `http://localhost:8000`. Swagger docs at `http://localhost:8000/docs`.
+API available at `http://localhost:8000`
+Swagger docs at `http://localhost:8000/docs`
 
-### Run the Terminal Monitor
-
-Open a second terminal in the same directory:
+### Terminal Monitor
 
 ```bash
-# Random simulation — mix of normal and anomalous logs
-python monitor.py
-
-# DDoS attack simulation — high anomaly rate
-python monitor.py --mode ddos
-
-# Stricter anomaly detection
-python monitor.py --sensitivity high
-
-# Larger batch size for higher throughput
-python monitor.py --batch 10
-
-# Run without MongoDB (no storage)
-python monitor.py --no-db
+python monitor.py                          # random mode
+python monitor.py --mode ddos              # DDoS simulation
+python monitor.py --sensitivity high       # stricter detection
+python monitor.py --batch 10              # larger batches
+python monitor.py --no-db                 # skip MongoDB
 ```
 
 ### Monitor Controls
@@ -306,8 +333,8 @@ python monitor.py --no-db
 ### Simulation Control
 
 ```
-POST /simulation/start?mode=random    Start log streaming (random mode)
-POST /simulation/start?mode=ddos      Start log streaming (DDoS mode)
+POST /simulation/start?mode=random    Start streaming (random mode)
+POST /simulation/start?mode=ddos      Start streaming (DDoS mode)
 POST /simulation/stop                 Stop streaming
 ```
 
@@ -315,11 +342,11 @@ POST /simulation/stop                 Stop streaming
 
 ```
 POST /logs/predict?sensitivity=low         Predict single log
-POST /logs/batch-predict?sensitivity=low   Predict batch of logs
+POST /logs/batch-predict?sensitivity=low   Predict batch
 POST /logs/simulate                        Generate + predict logs
 ```
 
-**Single log request body:**
+**Request body:**
 
 ```json
 {
@@ -345,26 +372,14 @@ POST /logs/simulate                        Generate + predict logs
 ### WebSocket
 
 ```
-WS /ws/logs    Live log stream — connects and receives JSON log entries
+WS /ws/logs    Live log stream
 ```
 
-Each message:
-
-```json
-{
-  "timestamp":  "09:14:32.441",
-  "level":      "ERROR",
-  "component":  "ddos.shield",
-  "message":    "DDoS detected — 4821 req/sec from 10.0.0.0/24",
-  "type":       "critical",
-  "source":     "websocket_stream"
-}
-```
-
-### Health Check
+### Utility
 
 ```
-GET /health    Returns system status and active connection count
+GET /health    System status, active connections, simulation state
+GET /docs      Swagger UI
 GET /          API info
 ```
 
@@ -372,25 +387,23 @@ GET /          API info
 
 ## Terminal Monitor
 
-The monitor is a standalone Python script — no browser, no frontend, no Node.js. It runs directly in PowerShell, CMD, or any Linux/macOS terminal over SSH.
+The monitor is a standalone Python script — no browser, no frontend. Runs in PowerShell, CMD, bash, or inside Docker.
 
-This matches how real security tooling works. Tools like Suricata, Wazuh agents, and Splunk forwarders are all terminal processes. They don't have UIs — they write to stdout, sockets, or log files and are typically monitored over SSH on remote infrastructure.
-
-**What the display shows:**
+This matches how real security tooling works. Suricata, Wazuh agents, and Splunk forwarders are all terminal processes. They don't have UIs — they write to stdout and are monitored over SSH on remote servers.
 
 ```
-log-anomaly-detection  mode:random  sens:low  total:152  warn:10  crit:8  rate:11.8%  db:on  2026-05-16T09:14:32Z  [LIVE]
---------------------------------------------------------------------------------
+log-anomaly-detection  mode:random  sens:low  total:152  warn:10  crit:8  rate:11.8%  db:on  [LIVE]
+────────────────────────────────────────────────────────────────────────────────────────────────────
 TIME            LVL    SEV       SCORE    COMPONENT              CONTENT
---------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────
 09:14:32.441    INFO     OK      0.031    DataNode               Checkpoint done
 09:14:33.012    WARN    WARN     0.463    FSNamesystem           Slow BlockReceiver: 4821ms
 09:14:33.445    ERROR   CRIT     0.821    NameNode               Lost contact: 9 missed heartbeats
---------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────
 [p] pause/resume  [c] clear  [q] quit
 ```
 
-The `SCORE` column is the model's raw `anomaly_score`. Everything else — `SEV`, coloured output, the label — comes from what `predict_batch()` returns. Nothing is pre-determined.
+The `SCORE` column is the model's raw `anomaly_score`. The label and severity come entirely from `predict_batch()` — nothing is pre-determined.
 
 ---
 
@@ -398,8 +411,8 @@ The `SCORE` column is the model's raw `anomaly_score`. Everything else — `SEV`
 
 | Parameter | Default | Options | Description |
 |-----------|---------|---------|-------------|
-| `--mode` | `random` | `random`, `ddos` | Simulation traffic pattern |
-| `--sensitivity` | `low` | `low`, `normal`, `high` | Model detection threshold |
+| `--mode` | `random` | `random`, `ddos` | Traffic pattern |
+| `--sensitivity` | `low` | `low`, `normal`, `high` | Detection threshold |
 | `--batch` | `5` | any int | Logs per inference call |
 | `--no-db` | off | flag | Disable MongoDB persistence |
 
@@ -407,42 +420,42 @@ The `SCORE` column is the model's raw `anomaly_score`. Everything else — `SEV`
 
 ## Design Decisions
 
+**Why Docker?**
+Eliminates the "works on my machine" problem entirely. Model weights are mounted as volumes so they don't inflate the image size. Anyone with Docker Desktop can run the full project in under 10 minutes.
+
 **Why no frontend?**
-A browser UI is the wrong abstraction for a log monitoring system. Real SOC tools (Suricata, Zeek, Wazuh, Splunk forwarders) run as terminal processes. The monitor is SSH-able, scriptable, and has no browser dependency you can run it on a remote server with no display.
+A browser UI is the wrong abstraction for a log monitoring system. Real SOC tools run as terminal processes. The monitor is SSH-able, scriptable, and has zero browser dependency.
 
 **Why unsupervised learning?**
-In real environments, anomalies are rare and often novel. You can't label what you don't know about. An autoencoder trained only on normal patterns can detect deviations without requiring a labelled anomaly dataset.
+In real environments, anomalies are rare and often novel — you can't label what you don't know about. An autoencoder trained only on normal patterns detects deviations without requiring a labelled anomaly dataset.
 
-**Why batch inference in the monitor instead of the `/logs/predict` API?**
-Latency. Calling the HTTP API per log adds network overhead. The monitor calls `predict_batch()` directly from the same process, keeping inference tight.
+**Why MongoDB over relational?**
+Log schemas vary. MongoDB's flexible document model handles variable log structures without schema migrations. For time-series queries at scale, Elasticsearch or ClickHouse would be the next step.
 
-**Why MongoDB over a relational database?**
-Log schemas vary. MongoDB's flexible document model handles variable log structures without schema migrations. For a time-series query pattern at scale, a purpose-built store like Elasticsearch or ClickHouse would be next.
+**Why batch inference in the monitor?**
+Calling the HTTP API per log adds network overhead. The monitor calls `predict_batch()` directly, keeping inference tight and latency low.
 
 ---
 
 ## Limitations & Future Work
 
 **Current limitations:**
-
-- Model weights are not in the repository — must be trained locally before running inference
+- Model trained on HDFS logs — performance degrades on logs from different systems
 - No authentication on API endpoints
-- Simulation generates synthetic logs; a production version would ingest from real log forwarders (Filebeat, Fluentd)
-- Single-node — no horizontal scaling of the inference worker
+- Simulation generates synthetic logs; production would ingest from Filebeat or Fluentd
+- Single-node — no horizontal scaling
 
-**Logical next steps for production:**
-
-- **Kafka / Redis Streams** between log ingestion and inference — decouples producers from consumers, handles traffic spikes without dropping logs
-- **Containerise with Docker** — `Dockerfile` + `docker-compose.yml` to package backend + model weights together, one-command setup anywhere
-- **Horizontal scaling** — multiple inference workers pulling from Kafka partitions, same model weights loaded per instance
-- **Alerting integration** — POST to Slack / PagerDuty when `severity == critical` and anomaly rate exceeds threshold
-- **Model retraining pipeline** — periodically retrain on new "confirmed normal" logs to adapt to system drift
+**Logical next steps:**
+- **Kafka** between ingestion and inference — decouples producers from consumers, handles traffic spikes
+- **Horizontal scaling** — multiple inference workers pulling from Kafka partitions
+- **Alerting** — POST to Slack/PagerDuty when `severity == critical`
+- **Model retraining pipeline** — adapt to new log patterns over time
 
 ---
 
 ## Requirements
 
-Key dependencies — see `requirements.txt` for full list with pinned versions.
+See `requirements.txt` for full pinned list. Key dependencies:
 
 ```
 fastapi
@@ -450,15 +463,11 @@ uvicorn
 websockets
 pymongo
 python-dotenv
-tensorflow / keras
+tensorflow
 scikit-learn
 numpy
 pandas
-rich
 ```
 
 ---
 
-## License
-
-MIT
