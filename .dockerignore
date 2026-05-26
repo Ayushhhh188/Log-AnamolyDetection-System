@@ -1,0 +1,37 @@
+# Virtual environment — never copy into Docker
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Environment secrets
+.env
+*.env
+!.env.example
+
+# Raw data — too large, mount via volume if needed
+data/raw/
+
+# Frontend — not needed in backend image
+frontend/node_modules/
+frontend/dist/
+
+# Git
+.git/
+.gitignore
+
+# Docs
+README.md
+*.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

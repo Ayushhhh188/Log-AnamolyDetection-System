@@ -1,0 +1,49 @@
+
+services:
+
+  # ── FastAPI Backend ────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: log-anomaly-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Mount model weights so they don't need to be baked into the image
+      - ./DL:/app/DL
+      - ./simulation:/app/simulation
+      - ./outputs:/app/outputs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ── Terminal Monitor ───────────────────────────────────────────────────
+  monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.monitor
+    container_name: log-anomaly-monitor
+    depends_on:
+      backend:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./DL:/app/DL
+      - ./simulation:/app/simulation
+      - ./outputs:/app/outputs
+    # Keep stdin open so the terminal monitor renders properly
+    stdin_open: true
+    tty: true
+    restart: unless-stopped

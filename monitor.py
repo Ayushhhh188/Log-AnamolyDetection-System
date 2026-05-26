@@ -192,7 +192,7 @@ def store(results: List[Dict]):
 # ── state ──────────────────────────────────────────────────────────────────
 class State:
     def __init__(self):
-        self.logs       = deque(maxlen=500)
+        self.logs       = deque(maxlen=100)
         self.total      = 0
         self.suspicious = 0
         self.critical   = 0
@@ -206,7 +206,7 @@ state = State()
 # ── worker ─────────────────────────────────────────────────────────────────
 def worker(batch: int, sensitivity: str, mode: str):
     ddos  = (mode == "ddos")
-    delay = 0.15 if ddos else 0.4
+    delay = 0.8 if ddos else 1.2
     while state.running:
         if state.paused:
             time.sleep(0.1)
@@ -228,30 +228,24 @@ def worker(batch: int, sensitivity: str, mode: str):
 
 # ── keyboard ───────────────────────────────────────────────────────────────
 def keyboard():
-    try:
-        import msvcrt
-        while state.running:
-            if msvcrt.kbhit():
-                ch = msvcrt.getwch().lower()
-                if   ch == 'q': state.running = False
-                elif ch == 'p': state.paused  = not state.paused
-                elif ch == 'c':
-                    with state.lock: state.logs.clear()
-            time.sleep(0.05)
-    except ImportError:
-        import tty, termios
-        fd  = sys.stdin.fileno()
-        old = termios.tcgetattr(fd)
+    while state.running:
         try:
-            tty.setraw(fd)
-            while state.running:
-                ch = sys.stdin.read(1).lower()
-                if   ch == 'q': state.running = False
-                elif ch == 'p': state.paused  = not state.paused
-                elif ch == 'c':
-                    with state.lock: state.logs.clear()
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            cmd = input().strip().lower()
+
+            if cmd == "q":
+                state.running = False
+
+            elif cmd == "p":
+                state.paused = not state.paused
+
+            elif cmd == "c":
+                with state.lock:
+                    state.logs.clear()
+
+        except EOFError:
+            break
+        except Exception:
+            pass
 
 # ── display ────────────────────────────────────────────────────────────────
 SEV_TAG = {"normal": "  OK  ", "suspicious": " WARN ", "critical": " CRIT "}
@@ -339,17 +333,17 @@ def main():
     time.sleep(0.3)
 
     threading.Thread(target=worker,   args=(args.batch, args.sensitivity, args.mode), daemon=True).start()
-    threading.Thread(target=keyboard, daemon=True).start()
+    threading.Thread(target=keyboard).start()
 
     # clear screen once
-    os.system("cls" if os.name == "nt" else "clear")
+    print("\033[2J")
 
     while state.running:
         frame = render(args.mode, args.sensitivity, use_db)
         # move cursor to top-left and overwrite
         sys.stdout.write("\033[H" + frame)
         sys.stdout.flush()
-        time.sleep(0.15)
+        time.sleep(0.6)
 
     # exit summary
     os.system("cls" if os.name == "nt" else "clear")

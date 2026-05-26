@@ -1,0 +1,27 @@
+# ── Monitor Dockerfile ────────────────────────────────────────────────────
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN touch DL/__init__.py \
+    DL/pipeline/__init__.py \
+    simulation/__init__.py \
+    backend/__init__.py \
+    backend/routes/__init__.py \
+    backend/services/__init__.py \
+    backend/models/__init__.py
+
+# Run the terminal monitor in random mode by default
+# Override with: docker-compose run monitor python monitor.py --mode ddos
+CMD ["python", "monitor.py", "--mode", "random", "--sensitivity", "low"]
